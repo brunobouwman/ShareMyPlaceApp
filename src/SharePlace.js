@@ -1,21 +1,29 @@
 import { Modal } from './UI/Modal';
 import { Map } from './UI/Map';
-import {getCoordsFromAddress} from './Utility/Location'
+import {getAddressFromCoords, getCoordsFromAddress} from './Utility/Location'
 
 class PlaceFinder {
     constructor() {
       const addressFormBtn = document.querySelector('form button');
       const locateUserBtn = document.getElementById('locate-btn');
+      this.shareBtn = document.getElementById('share-btn');
+      
       addressFormBtn.addEventListener('click', this.findAdressHandler.bind(this));
       locateUserBtn.addEventListener('click', this.locateUserHandler.bind(this)); //adding eventlisteners to the constructor so they will be initialized in the instance (bind this so the handler function can utilize 'this' related to the class instance)
+      // this.shareBtn.addEventListener('click' )
     }
 
-  selectPlace(coordinates) {
+  selectPlace(coordinates, address) {
         if (this.map) { //checks if theres a map in place already and if there is reuses it (so theres no need to render a new map every time)
             this.map.render(coordinates);
         } else {
             this.map =  new Map(coordinates);
         }
+
+      this.shareBtn.disable = false;
+      const sharedLinkInputEl = document.getElementById('share-link');
+      sharedLinkInputEl.value = `${location.origin}/my-place?address=${encodeURI(address)}&lat=${coordinates.lat}&lng=${coordinates.lng}`; //location.origin gives you the user current DOMAIN. '?' query parameter for extra data '&' another optional query parameter
+
     }
   
     locateUserHandler() {
@@ -28,13 +36,14 @@ class PlaceFinder {
       const modal = new Modal('loading-modal-content', 'Loading location - please wait');
       modal.show();
       navigator.geolocation.getCurrentPosition(
-        (successResult) => { //arrow function so this referes to the same as if used outside of the function
-            modal.hide(); //only executes when sucess is "triggered" hence promise complete
+       async (successResult) => { //arrow function so this referes to the same as if used outside of the function and async because we need to AWAIT it's result
           const coordinates = {
             lat: successResult.coords.latitude,
             lng: successResult.coords.longitude,
           };
-          this.selectPlace(coordinates);
+          modal.hide(); //only executes when sucess is "triggered" hence promise complete
+          const address = await getAddressFromCoords(coordinates);
+          this.selectPlace(coordinates, address);
         },
         (error) => {
             modal.hide();
@@ -55,7 +64,7 @@ class PlaceFinder {
       modal.show();
       try {
      const coordinates = await getCoordsFromAddress(address); //returns a promise
-     this.selectPlace(coordinates);
+     this.selectPlace(coordinates, address);
       }catch (err) { //catches any potential error in the proccess
         alert(err.message); //built-in error constructor function gives you the .message property (display messages created in the error handling configured in the location.js file)
       }
